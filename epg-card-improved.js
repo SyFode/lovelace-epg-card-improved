@@ -350,12 +350,12 @@ class EpgCardImproved extends LitElement {
       row_height: config.row_height || 100,
       min_program_width: config.min_program_width || 80,
       default_hours_visible: config.default_hours_visible || 4,
-      program_background_color: config.program_background_color || "#555555",
-      program_text_color: config.program_text_color || "#ffffff",
+      program_background_color: this._rgbToHex(config.program_background_color) || "#555555",
+      program_text_color: this._rgbToHex(config.program_text_color) || "#ffffff",
       program_border_radius: config.program_border_radius || 4,
-      current_program_highlight: config.current_program_highlight || "#0056b3",
-      timeline_color: config.timeline_color || "#cccccc",
-      channel_name_color: config.channel_name_color || "#ffffff",
+      current_program_highlight: this._rgbToHex(config.current_program_highlight) || "#0056b3",
+      timeline_color: this._rgbToHex(config.timeline_color) || "#cccccc",
+      channel_name_color: this._rgbToHex(config.channel_name_color) || "#ffffff",
       enable_search: config.enable_search !== undefined ? config.enable_search : true,
       enable_time_navigation: config.enable_time_navigation !== undefined ? config.enable_time_navigation : true,
     };
@@ -374,6 +374,21 @@ class EpgCardImproved extends LitElement {
 
   getCardSize() {
     return 5;
+  }
+
+  /**
+   * Convert HA color_rgb value to hex string.
+   * HA's color_rgb selector returns [r, g, b] array or a hex string.
+   * This normalizes both formats to hex strings.
+   */
+  _rgbToHex(value) {
+    if (!value) return value;
+    if (typeof value === "string") return value;
+    if (Array.isArray(value) && value.length === 3) {
+      const [r, g, b] = value;
+      return "#" + [r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("");
+    }
+    return value;
   }
 
   // ===== Data Layer Methods =====
@@ -630,10 +645,17 @@ class EpgCardImproved extends LitElement {
     }
 
     try {
-      const results = await this.hass.callService("epg", "search_program", {
-        title: this._searchQuery,
-      }, true);
-      const searchResults = results?.results || results || [];
+      // Use callWS to get service response data (callService doesn't return response)
+      const results = await this.hass.callWS({
+        type: "call_service",
+        domain: "epg",
+        service: "search_program",
+        service_data: {
+          title: this._searchQuery,
+        },
+        return_response: true,
+      });
+      const searchResults = results?.response?.results || results?.results || results || [];
       this._searchResults = Array.isArray(searchResults) ? searchResults : [];
     } catch (e) {
       console.error("EPG search failed:", e);
