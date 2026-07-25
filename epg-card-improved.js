@@ -576,7 +576,7 @@ class EpgCardImproved extends LitElement {
       }
     }
     this._channelVisibility[entityId] = !this._channelVisibility[entityId];
-    const key = "epg-channels-" + this.config.entities.sort().join(",");
+    const key = "epg-channels-" + [...this.config.entities].sort().join(",");
     localStorage.setItem(key, JSON.stringify(this._channelVisibility));
     this.requestUpdate();
   }
@@ -585,7 +585,7 @@ class EpgCardImproved extends LitElement {
    * Load channel visibility from localStorage.
    */
   _loadChannelVisibility() {
-    const key = "epg-channels-" + this.config.entities.sort().join(",");
+    const key = "epg-channels-" + [...this.config.entities].sort().join(",");
     const stored = localStorage.getItem(key);
     if (stored) {
       try {
