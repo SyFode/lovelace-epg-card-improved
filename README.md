@@ -4,31 +4,32 @@ A Home Assistant Lovelace card for displaying EPG (Electronic Program Guide) dat
 
 ## Features
 
-- **Readable short programs** — minimum width ensures text is never cut off
-- **Touch-friendly** — tap any program to see details (no hover dependency)
+- **Vertical timeline layout** — time runs top-to-bottom, channels displayed as columns side by side
+- **Fixed-width columns** — program titles always have enough horizontal space to be readable
+- **Touch-friendly popups with navigation** — tap any program to see details, then navigate between programs and channels with ▲◀▶▼ arrows
+- **Search with local fallback** — find programs by name; falls back to local search if the integration WS call fails
 - **Time navigation** — scroll forward/backward through the day
-- **Search** — find programs by name using the `epg.search_program` service
 - **Channel management** — show/hide channels dynamically
-- **Visual customization** — colors, borders, and sizes via config or CSS custom properties
+- **Visual customization** — colors, borders, column sizes via config
 - **Dark/light mode** — falls back to HA theme colors
 
 ## Installation
 
 ### HACS (Recommended)
 
-1. In HACS → Frontend → Custom Repositories, add: `https://github.com/<your-repo>/epg-card-improved`
+1. In HACS → Frontend → Custom Repositories, add: `https://github.com/SyFode/lovelace-epg-card-improved`
 2. Search for "EPG Card Improved" and install
 3. Add the card to your dashboard
 
 ### Manual
 
-1. Copy the `epg-card-improved` folder to `/config/www/community/epg-card-improved/`
+1. Copy the `epg-card-improved.js` file to `/config/www/community/epg-card-improved/`
 2. Add to `configuration.yaml` or Dashboard Resources:
 
 ```yaml
 lovelace:
   resources:
-    - url: /local/community/epg-card-improved/epg-card-improved.js?v=1.0.0
+    - url: /local/community/epg-card-improved/epg-card-improved.js?v=2.0.0
       type: module
 ```
 
@@ -40,8 +41,10 @@ entities:
   - sensor.tf1
   - sensor.france_2
   - sensor.france_3
-row_height: 139
-min_program_width: 80
+column_width: 160
+min_program_height: 30
+pixels_per_hour: 150
+timeline_width: 60
 default_hours_visible: 4
 program_background_color: "#555555"
 program_text_color: "#ffffff"
@@ -55,8 +58,10 @@ enable_time_navigation: true
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `entities` | list | required | EPG sensor entity IDs |
-| `row_height` | int | 100 | Row height in pixels |
-| `min_program_width` | int | 80 | Minimum program block width in pixels |
+| `column_width` | int | 160 | Width of each channel column in pixels |
+| `min_program_height` | int | 30 | Minimum program block height in pixels |
+| `pixels_per_hour` | int | 150 | Vertical height per hour of programming in pixels |
+| `timeline_width` | int | 60 | Width of the left timeline column in pixels |
 | `default_hours_visible` | int | 4 | Hours shown in the viewport |
 | `program_background_color` | string | `#555555` | Program block background |
 | `program_text_color` | string | `#ffffff` | Program title color |
@@ -67,11 +72,27 @@ enable_time_navigation: true
 | `enable_search` | bool | true | Show search button |
 | `enable_time_navigation` | bool | true | Show time navigation buttons |
 
+### Migration from v1.x
+
+If upgrading from the horizontal layout version, remove these deprecated options:
+- `row_height` — replaced by `pixels_per_hour` and `column_width`
+- `min_program_width` — replaced by `min_program_height`
+
 ### CSS Custom Properties
 
 All visual options are also available as CSS custom properties with the `--epg-` prefix for theme-level control:
 
-`--epg-program-bg`, `--epg-program-text`, `--epg-program-current-bg`, `--epg-program-border-radius`, `--epg-program-border`, `--epg-channel-name-color`, `--epg-timeline-color`, `--epg-row-height`, `--epg-min-program-width`
+`--epg-program-bg`, `--epg-program-text`, `--epg-program-current-bg`, `--epg-program-border-radius`, `--epg-program-border`, `--epg-channel-name-color`, `--epg-timeline-color`, `--epg-column-width`, `--epg-min-program-height`, `--epg-timeline-width`, `--epg-viewport-height`
+
+## Popup Navigation
+
+When viewing a program's details, use the navigation arrows to browse without closing the popup:
+- **▲** — Previous channel (at the same time slot)
+- **▼** — Next channel (at the same time slot)
+- **◀** — Previous program on the same channel
+- **▶** — Next program on the same channel
+
+The viewport automatically scrolls to show programs that are off-screen.
 
 ## Requirements
 
