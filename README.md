@@ -61,7 +61,7 @@ grid_options:
 |--------|------|---------|-------------|
 | `entities` | list | required | EPG sensor entity IDs |
 | `column_width` | int | 160 | Width of each channel column in pixels |
-| `min_program_height` | int | 30 | Minimum program block height in pixels |
+| `min_program_height` | int | 42 | Minimum program block height in pixels (should be ~42 to fit two-line titles) |
 | `min_program_duration_minutes` | int | 15 | Programs shorter than this (in minutes) get an enlarged block so their title is readable |
 | `pixels_per_hour` | int | 150 | Vertical height per hour of programming in pixels |
 | `timeline_width` | int | 60 | Width of the left timeline column in pixels |
@@ -93,6 +93,8 @@ When viewing a program's details, use the navigation arrows to browse without cl
 - **◀ ▶** — Previous/next channel (shows the program airing at the same time on the adjacent channel)
 - **▲** — Earlier program on the same channel
 - **▼** — Later program on the same channel
+- **🕐 Now** — Jump to the currently airing program on the same channel
+- **👁 Show** — Scroll the timeline to show this program's time slot
 
 The viewport automatically scrolls to show programs that are off-screen.
 

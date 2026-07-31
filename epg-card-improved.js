@@ -238,6 +238,29 @@ class EpgCardImproved extends LitElement {
       .epg-popup-programs-nav .epg-popup-arrow-btn {
         width: 100%;
       }
+      .epg-popup-actions {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .epg-popup-action-btn {
+        flex: 1;
+        background: transparent;
+        border: 1px solid var(--epg-timeline-color, #cccccc);
+        color: var(--epg-program-text, #ffffff);
+        border-radius: 4px;
+        padding: 6px 8px;
+        cursor: pointer;
+        font-size: 13px;
+        text-align: center;
+      }
+      .epg-popup-action-btn:hover {
+        opacity: 0.8;
+      }
+      .epg-popup-action-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
+      }
       .epg-popup-close {
         display: block;
         margin-left: auto;
@@ -391,7 +414,7 @@ class EpgCardImproved extends LitElement {
     this.config = {
       entities: config.entities,
       column_width: config.column_width || 160,
-      min_program_height: config.min_program_height || 30,
+      min_program_height: config.min_program_height || 42,
       min_program_duration_minutes: config.min_program_duration_minutes || 15,
       default_hours_visible: config.default_hours_visible || 4,
       pixels_per_hour: config.pixels_per_hour || 150,
@@ -611,8 +634,8 @@ class EpgCardImproved extends LitElement {
     const minDuration = this.config.min_program_duration_minutes || 15;
     // Short programs get a larger minimum height to ensure titles are readable
     const minPx = (durationMinutes !== undefined && durationMinutes < minDuration)
-      ? Math.max(this.config.min_program_height || 30, minDuration * (this.config.pixels_per_hour || 150) / 60)
-      : this.config.min_program_height || 30;
+      ? Math.max(this.config.min_program_height || 42, minDuration * (this.config.pixels_per_hour || 150) / 60)
+      : this.config.min_program_height || 42;
     const minHeightPercent = (minPx / containerHeight) * 100;
     return Math.max(heightPercent, minHeightPercent);
   }
@@ -842,6 +865,17 @@ class EpgCardImproved extends LitElement {
     return currentIdx < channels.length - 1;
   }
 
+  _canNavigateNow() {
+    if (!this._selectedProgram) return false;
+    const channels = this._getEpgData().filter((c) => c.visible);
+    const channel = channels.find((c) => c.entityId === this._selectedProgram.channelEntityId);
+    if (!channel) return false;
+    const now = new Date();
+    return channel.programs.some(
+      (p) => p.startDate <= now && p.endDate >= now
+    );
+  }
+
   _ensureProgramVisible(program) {
     const viewport = this._getViewport();
     if (program.startDate < viewport.start || program.startDate >= viewport.end) {
@@ -851,6 +885,39 @@ class EpgCardImproved extends LitElement {
       const absoluteHour = program.startDate.getHours() + (dayOffset >= 1 ? 24 : 0);
       this._viewportStartHour = Math.max(0, absoluteHour - 1);
     }
+  }
+
+  /**
+   * Navigate popup to the current program on the same channel.
+   */
+  _navigatePopupNow() {
+    const channels = this._getEpgData().filter((c) => c.visible);
+    const channel = channels.find((c) => c.entityId === this._selectedProgram.channelEntityId);
+    if (!channel) return;
+    const now = new Date();
+    const currentProgram = channel.programs.find(
+      (p) => p.startDate <= now && p.endDate >= now
+    );
+    if (currentProgram) {
+      this._selectedProgram = {
+        ...currentProgram,
+        channelName: channel.name,
+        channelEntityId: channel.entityId,
+        channelIndex: this._selectedProgram.channelIndex,
+      };
+      this._ensureProgramVisible(currentProgram);
+      this.requestUpdate();
+    }
+  }
+
+  /**
+   * Scroll the timeline to show the selected program's time slot,
+   * keeping the popup open.
+   */
+  _showProgramInTimeline() {
+    if (!this._selectedProgram) return;
+    this._ensureProgramVisible(this._selectedProgram);
+    this.requestUpdate();
   }
 
   // ===== Search Methods =====
@@ -979,7 +1046,7 @@ class EpgCardImproved extends LitElement {
       <style>
         .epg-container {
           --epg-column-width: ${columnWidth}px;
-          --epg-min-program-height: ${this.config.min_program_height || 30}px;
+          --epg-min-program-height: ${this.config.min_program_height || 42}px;
           --epg-program-bg: ${this.config.program_background_color || "#555555"};
           --epg-program-text: ${this.config.program_text_color || "#ffffff"};
           --epg-program-current-bg: ${this.config.current_program_highlight || "#0056b3"};
@@ -1070,7 +1137,7 @@ class EpgCardImproved extends LitElement {
    */
   _calculateProgramLayout(visiblePrograms, viewport) {
     const containerHeight = (this.config.pixels_per_hour || 150) * (this.config.default_hours_visible || 4);
-    const minProgramHeightPx = this.config.min_program_height || 30;
+    const minProgramHeightPx = this.config.min_program_height || 42;
     const gapPx = 4; // Small gap between programs to avoid title overlap
     const gapPercent = (gapPx / containerHeight) * 100;
 
@@ -1169,6 +1236,10 @@ class EpgCardImproved extends LitElement {
           <div class="epg-popup-programs-nav">
             <button class="epg-popup-arrow-btn" @click=${this._navigatePopupPrev} ?disabled=${!this._canNavigatePrev()} title="Earlier program">▲</button>
             <button class="epg-popup-arrow-btn" @click=${this._navigatePopupNext} ?disabled=${!this._canNavigateNext()} title="Later program">▼</button>
+          </div>
+          <div class="epg-popup-actions">
+            <button class="epg-popup-action-btn" @click=${this._navigatePopupNow} ?disabled=${!this._canNavigateNow()} title="Jump to current program">🕐 Now</button>
+            <button class="epg-popup-action-btn" @click=${this._showProgramInTimeline} title="Show in timeline">👁 Show</button>
           </div>
           <button class="epg-popup-close" @click=${this._closeProgramDetail}>Close</button>
         </div>
