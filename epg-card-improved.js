@@ -47,9 +47,9 @@ class EpgCardImproved extends LitElement {
         border-radius: 4px;
         color: var(--epg-program-text, #ffffff);
         cursor: pointer;
-        font-size: 16px;
-        padding: 4px 10px;
-        min-width: 32px;
+        font-size: 20px;
+        padding: 8px 14px;
+        min-width: 40px;
         text-align: center;
       }
       .epg-nav-btn:hover {
@@ -1171,14 +1171,17 @@ class EpgCardImproved extends LitElement {
       const minPercent = (minProgramHeightPx / containerHeight) * 100;
       let height = Math.max(availableHeight, minPercent);
 
-      // If the program extends past the viewport bottom, clip it to the viewport edge
-      if (top + height > 100) {
-        height = 100 - top;
+      // If the program doesn't have enough space for a readable title at the bottom,
+      // hide it entirely rather than showing a truncated fraction
+      const readableHeight = (20 / containerHeight) * 100; // ~20px for one readable line
+      if (top + height > 100 && (100 - top) < readableHeight) {
+        // Not enough space to show even one line — hide entirely
+        continue;
       }
 
-      // Skip programs that are too small to be meaningful after clipping
-      if (height < 1) {
-        continue;
+      // Clip programs that extend past the viewport bottom but have enough space to be readable
+      if (top + height > 100) {
+        height = 100 - top;
       }
 
       layout.push({ program, top, height, durationMinutes });
