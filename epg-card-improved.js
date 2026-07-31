@@ -132,6 +132,12 @@ class EpgCardImproved extends LitElement {
         border: var(--epg-program-border, none);
         transition: background-color 0.15s;
       }
+      .epg-program.short {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
       .epg-program:hover {
         opacity: 0.85;
       }
@@ -702,7 +708,10 @@ class EpgCardImproved extends LitElement {
 
   _navigateBack() {
     const hours = this.config.default_hours_visible || 4;
-    this._viewportStartHour = Math.max(0, this._viewportStartHour - hours);
+    const nowHour = new Date().getHours();
+    // Don't scroll back before the current hour minus 1 (to show start of current program)
+    const minStart = Math.max(0, nowHour - 1);
+    this._viewportStartHour = Math.max(minStart, this._viewportStartHour - hours);
     this.requestUpdate();
   }
 
@@ -879,10 +888,9 @@ class EpgCardImproved extends LitElement {
   _ensureProgramVisible(program) {
     const viewport = this._getViewport();
     if (program.startDate < viewport.start || program.startDate >= viewport.end) {
-      // Calculate absolute hour (0-47) accounting for dayOffset
-      const now = new Date();
-      const dayOffset = Math.floor((program.startDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
-      const absoluteHour = program.startDate.getHours() + (dayOffset >= 1 ? 24 : 0);
+      // Use the program's dayOffset (0=today, 1=tomorrow) for correct absolute hour
+      const dayOffset = program.dayOffset || 0;
+      const absoluteHour = program.startDate.getHours() + (dayOffset * 24);
       this._viewportStartHour = Math.max(0, absoluteHour - 1);
     }
   }
@@ -1153,12 +1161,27 @@ class EpgCardImproved extends LitElement {
       const minTop = prevBottomPercent > 0 ? prevBottomPercent + gapPercent : pos.top;
       const top = Math.max(pos.top, minTop);
 
+      // Skip programs that start below the viewport — they can't be displayed at all
+      if (top >= 100) {
+        break;
+      }
+
       // Recalculate height: shrink if pushed down, but never below minimum
       const availableHeight = effectiveHeight - (top - pos.top);
       const minPercent = (minProgramHeightPx / containerHeight) * 100;
-      const height = Math.max(availableHeight, minPercent);
+      let height = Math.max(availableHeight, minPercent);
 
-      layout.push({ program, top, height });
+      // If the program extends past the viewport bottom, clip it to the viewport edge
+      if (top + height > 100) {
+        height = 100 - top;
+      }
+
+      // Skip programs that are too small to be meaningful after clipping
+      if (height < 1) {
+        continue;
+      }
+
+      layout.push({ program, top, height, durationMinutes });
       prevBottomPercent = top + height;
     }
 
@@ -1174,8 +1197,8 @@ class EpgCardImproved extends LitElement {
         <div class="epg-channel-header">${channel.name}</div>
         <div class="epg-programs-col" style="height: ${programAreaHeight}px">
           ${this._renderNowLineInColumn(viewport)}
-          ${layout.map(({ program, top, height }) =>
-            this._renderProgramBlockWithPosition(program, channel, top, height)
+          ${layout.map(({ program, top, height, durationMinutes }) =>
+            this._renderProgramBlockWithPosition(program, channel, top, height, durationMinutes)
           )}
         </div>
       </div>
@@ -1199,11 +1222,13 @@ class EpgCardImproved extends LitElement {
     `;
   }
 
-  _renderProgramBlockWithPosition(program, channel, top, height) {
+  _renderProgramBlockWithPosition(program, channel, top, height, durationMinutes) {
     const isCurrent = program.isCurrent;
+    const minDuration = this.config.min_program_duration_minutes || 15;
+    const isShort = durationMinutes !== undefined && durationMinutes < minDuration;
     return html`
       <div
-        class="epg-program ${isCurrent ? "current" : ""}"
+        class="epg-program ${isCurrent ? "current" : ""} ${isShort ? "short" : ""}"
         style="top: ${top}%; height: ${height}%;"
         @click=${() => this._showProgramDetail(program, channel)}
       >
