@@ -59,13 +59,18 @@ class EpgCardImproved extends LitElement {
       .epg-grid-wrapper {
         display: flex;
         position: relative;
+        align-items: flex-start;
       }
       /* Timeline column (left side) */
       .epg-timeline-col {
         position: relative;
         flex-shrink: 0;
         background: var(--ha-card-background, #1c1c1e);
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        border-right: 1px solid rgba(255, 255, 255, 0.15);
+      }
+      .epg-timeline-header-spacer {
+        height: 40px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       }
       .epg-timeline-label {
         position: absolute;
@@ -83,11 +88,13 @@ class EpgCardImproved extends LitElement {
         display: flex;
         flex: 1;
         overflow-x: auto;
+        overflow-y: hidden;
       }
       /* Individual channel column */
       .epg-channel-col {
         position: relative;
         flex-shrink: 0;
+        width: var(--epg-column-width);
         border-right: 1px solid rgba(255, 255, 255, 0.1);
       }
       .epg-channel-header {
@@ -111,20 +118,16 @@ class EpgCardImproved extends LitElement {
       /* Program blocks */
       .epg-program {
         position: absolute;
-        width: calc(var(--epg-column-width) - 8px);
-        left: 4px;
+        left: 2px;
+        right: 2px;
         background-color: var(--epg-program-bg, #555555);
         color: var(--epg-program-text, #ffffff);
         border-radius: var(--epg-program-border-radius, 4px);
         padding: 4px 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
         cursor: pointer;
         font-size: 13px;
+        line-height: 1.3;
         box-sizing: border-box;
         border: var(--epg-program-border, none);
         transition: background-color 0.15s;
@@ -999,9 +1002,12 @@ class EpgCardImproved extends LitElement {
     }
 
     return html`
-      <div class="epg-timeline-col" style="height: ${programAreaHeight}px">
-        ${timeLabels}
-        ${nowDot}
+      <div class="epg-timeline-col" style="width: var(--epg-timeline-width)">
+        <div class="epg-timeline-header-spacer"></div>
+        <div style="position: relative; height: ${programAreaHeight}px;">
+          ${timeLabels}
+          ${nowDot}
+        </div>
       </div>
     `;
   }
