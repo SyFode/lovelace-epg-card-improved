@@ -565,12 +565,14 @@ class EpgCardImproved extends LitElement {
 
   /**
    * Get the viewport time range based on _viewportStartHour and default_hours_visible.
+   * _viewportStartHour can exceed 24 to scroll into tomorrow.
    */
   _getViewport() {
     const hoursVisible = this.config.default_hours_visible || 4;
-    const startHour = Math.min(this._viewportStartHour, 24 - hoursVisible);
+    const startHour = this._viewportStartHour;
     const start = new Date();
-    start.setHours(startHour, 0, 0, 0);
+    start.setDate(start.getDate() + Math.floor(startHour / 24));
+    start.setHours(startHour % 24, 0, 0, 0);
     const end = new Date(start.getTime() + hoursVisible * 60 * 60 * 1000);
     return { start, end, hoursVisible };
   }
@@ -617,15 +619,19 @@ class EpgCardImproved extends LitElement {
 
   /**
    * Generate timeline hour labels for the current viewport.
+   * Adds a "+" prefix for hours on the next day.
    */
   _getTimelineHours() {
     const viewport = this._getViewport();
     const hours = [];
-    const startHour = viewport.start.getHours();
+    const startHour = this._viewportStartHour;
     const hoursVisible = viewport.hoursVisible;
     for (let i = 0; i <= hoursVisible; i++) {
-      const hour = (startHour + i) % 24;
-      hours.push(hour.toString().padStart(2, "0") + ":00");
+      const absHour = startHour + i;
+      const displayHour = absHour % 24;
+      const isNextDay = absHour >= 24;
+      const label = displayHour.toString().padStart(2, "0") + ":00" + (isNextDay ? "+" : "");
+      hours.push(label);
     }
     return hours;
   }
@@ -679,7 +685,8 @@ class EpgCardImproved extends LitElement {
 
   _navigateForward() {
     const hours = this.config.default_hours_visible || 4;
-    const maxStart = Math.max(0, 24 - hours);
+    // Allow scrolling up to 48 hours (today + tomorrow)
+    const maxStart = 48 - hours;
     this._viewportStartHour = Math.min(maxStart, this._viewportStartHour + hours);
     this.requestUpdate();
   }
@@ -838,7 +845,11 @@ class EpgCardImproved extends LitElement {
   _ensureProgramVisible(program) {
     const viewport = this._getViewport();
     if (program.startDate < viewport.start || program.startDate >= viewport.end) {
-      this._viewportStartHour = Math.max(0, program.startDate.getHours() - 1);
+      // Calculate absolute hour (0-47) accounting for dayOffset
+      const now = new Date();
+      const dayOffset = Math.floor((program.startDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      const absoluteHour = program.startDate.getHours() + (dayOffset >= 1 ? 24 : 0);
+      this._viewportStartHour = Math.max(0, absoluteHour - 1);
     }
   }
 
