@@ -75,9 +75,9 @@ grid_options:
 | `enable_search` | bool | true | Show search button |
 | `enable_time_navigation` | bool | true | Show time navigation buttons |
 
-### Migration from v1.x
+### Migration from horizontal layout
 
-If upgrading from the horizontal layout version, remove these deprecated options:
+If upgrading from the original horizontal layout version (pre-v0.9), remove these deprecated options:
 - `row_height` — replaced by `pixels_per_hour` and `column_width`
 - `min_program_width` — replaced by `min_program_height`
 
