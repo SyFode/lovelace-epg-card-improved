@@ -132,9 +132,8 @@ class EpgCardImproved extends LitElement {
         border: var(--epg-program-border, none);
         transition: background-color 0.15s;
       }
-      .epg-program.short {
+      .epg-program.clamped {
         display: -webkit-box;
-        -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
       }
       .epg-program:hover {
@@ -1143,6 +1142,11 @@ class EpgCardImproved extends LitElement {
     const minProgramHeightPx = this.config.min_program_height || 42;
     const gapPx = 4; // Small gap between programs to avoid title overlap
     const gapPercent = (gapPx / containerHeight) * 100;
+    const fontSize = 13;
+    const lineHeight = 1.3;
+    const pxPerLine = fontSize * lineHeight; // ~16.9px per line
+    const paddingTop = 4; // matches .epg-program padding
+    const paddingBottom = 4;
 
     const layout = [];
     let prevBottomPercent = -Infinity; // Track the bottom of the previous program block
@@ -1166,20 +1170,24 @@ class EpgCardImproved extends LitElement {
       const minPercent = (minProgramHeightPx / containerHeight) * 100;
       let height = Math.max(availableHeight, minPercent);
 
-      // If the program doesn't have enough space for a readable title at the bottom,
-      // hide it entirely rather than showing a truncated fraction
-      const readableHeight = (20 / containerHeight) * 100; // ~20px for one readable line
-      if (top + height > 100 && (100 - top) < readableHeight) {
-        // Not enough space to show even one line — hide entirely
-        continue;
-      }
-
-      // Clip programs that extend past the viewport bottom but have enough space to be readable
+      // Calculate how many full lines of text fit in the visible portion of this block
+      let maxLines = null;
       if (top + height > 100) {
+        // Program extends past the viewport bottom — clip and compute visible lines
+        const visiblePx = ((100 - top) / 100) * containerHeight;
+        const textPx = visiblePx - paddingTop - paddingBottom;
+        const linesThatFit = Math.floor(textPx / pxPerLine);
+
+        if (linesThatFit < 1) {
+          // Not enough space to show even one full line — hide entirely
+          continue;
+        }
+
         height = 100 - top;
+        maxLines = linesThatFit;
       }
 
-      layout.push({ program, top, height, durationMinutes });
+      layout.push({ program, top, height, durationMinutes, maxLines });
       prevBottomPercent = top + height;
     }
 
@@ -1195,8 +1203,8 @@ class EpgCardImproved extends LitElement {
         <div class="epg-channel-header">${channel.name}</div>
         <div class="epg-programs-col" style="height: ${programAreaHeight}px">
           ${this._renderNowLineInColumn(viewport)}
-          ${layout.map(({ program, top, height, durationMinutes }) =>
-            this._renderProgramBlockWithPosition(program, channel, top, height, durationMinutes)
+          ${layout.map(({ program, top, height, durationMinutes, maxLines }) =>
+            this._renderProgramBlockWithPosition(program, channel, top, height, durationMinutes, maxLines)
           )}
         </div>
       </div>
@@ -1220,14 +1228,29 @@ class EpgCardImproved extends LitElement {
     `;
   }
 
-  _renderProgramBlockWithPosition(program, channel, top, height, durationMinutes) {
+  _renderProgramBlockWithPosition(program, channel, top, height, durationMinutes, maxLines) {
     const isCurrent = program.isCurrent;
     const minDuration = this.config.min_program_duration_minutes || 15;
     const isShort = durationMinutes !== undefined && durationMinutes < minDuration;
+    // Determine line clamp: short programs get max 2 lines, viewport-clipped programs get maxLines
+    let clampLines = null;
+    if (isShort) {
+      clampLines = maxLines !== null && maxLines !== undefined ? Math.min(2, maxLines) : 2;
+    } else if (maxLines !== null && maxLines !== undefined) {
+      clampLines = maxLines;
+    }
+
+    const classes = ["epg-program"];
+    if (isCurrent) classes.push("current");
+    if (clampLines !== null) classes.push("clamped");
+    const classAttr = classes.join(" ");
+
+    const clampStyle = clampLines !== null ? `-webkit-line-clamp: ${clampLines};` : "";
+
     return html`
       <div
-        class="epg-program ${isCurrent ? "current" : ""} ${isShort ? "short" : ""}"
-        style="top: ${top}%; height: ${height}%;"
+        class="${classAttr}"
+        style="top: ${top}%; height: ${height}%; ${clampStyle}"
         @click=${() => this._showProgramDetail(program, channel)}
       >
         ${program.title}
