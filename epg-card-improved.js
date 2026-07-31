@@ -1,7 +1,7 @@
 /**
  * EPG Card Improved
  * A Home Assistant Lovelace card for displaying EPG data from the HomeAssistant-EPG integration.
- * Features: touch-friendly popups, search, time navigation, channel management, visual customization.
+ * Features: vertical timeline, touch-friendly popups with navigation, search, time navigation, channel management, visual customization.
  */
 
 // HA provides LitElement globally — no import needed
@@ -33,7 +33,8 @@ class EpgCardImproved extends LitElement {
         font-family: var(--ha-font-family, inherit);
         padding: 16px;
       }
-      .epg-timeline-bar {
+      /* Navigation bar */
+      .epg-nav-bar {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -54,61 +55,64 @@ class EpgCardImproved extends LitElement {
       .epg-nav-btn:hover {
         opacity: 0.8;
       }
-      .epg-timeline-hours {
+      /* Grid wrapper: timeline column + channels area */
+      .epg-grid-wrapper {
         display: flex;
-        flex: 1;
-        overflow: hidden;
-      }
-      .epg-timeline-hour {
-        flex: 1;
-        text-align: center;
-        font-weight: bold;
-        font-size: 12px;
-        color: var(--epg-timeline-color, #cccccc);
-        border-right: 1px solid var(--epg-timeline-color, #cccccc);
-        padding: 4px 0;
-        min-width: 60px;
-      }
-      .epg-grid {
-        display: flex;
-        flex-direction: column;
         position: relative;
       }
-      .epg-channel-row {
-        display: flex;
-        align-items: center;
-        margin-bottom: 4px;
-        height: var(--epg-row-height, 100px);
+      /* Timeline column (left side) */
+      .epg-timeline-col {
+        position: relative;
+        flex-shrink: 0;
+        background: var(--ha-card-background, #1c1c1e);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
       }
-      .epg-channel-name {
-        width: 12%;
-        min-width: 80px;
-        max-width: 120px;
-        font-weight: bold;
+      .epg-timeline-label {
+        position: absolute;
+        left: 0;
+        right: 0;
         text-align: right;
         padding-right: 8px;
-        color: var(--epg-channel-name-color, #ffffff);
+        font-size: 11px;
+        font-weight: bold;
+        color: var(--epg-timeline-color, #cccccc);
+        transform: translateY(-50%);
+      }
+      /* Channels area (right of timeline) */
+      .epg-channels-area {
+        display: flex;
+        flex: 1;
+        overflow-x: auto;
+      }
+      /* Individual channel column */
+      .epg-channel-col {
+        position: relative;
+        flex-shrink: 0;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .epg-channel-header {
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
         font-size: 13px;
+        color: var(--epg-channel-name-color, #ffffff);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0 4px;
       }
-      .epg-programs-container {
-        flex: 1;
+      .epg-programs-col {
         position: relative;
-        height: var(--epg-row-height, 100px);
-        overflow-x: auto;
-        overflow-y: hidden;
+        overflow: hidden;
       }
-      .epg-programs-inner {
-        position: relative;
-        height: 100%;
-        min-width: 100%;
-      }
+      /* Program blocks */
       .epg-program {
         position: absolute;
-        height: calc(var(--epg-row-height, 100px) - 8px);
-        top: 4px;
+        width: calc(var(--epg-column-width) - 8px);
+        left: 4px;
         background-color: var(--epg-program-bg, #555555);
         color: var(--epg-program-text, #ffffff);
         border-radius: var(--epg-program-border-radius, 4px);
@@ -131,23 +135,23 @@ class EpgCardImproved extends LitElement {
       .epg-program.current {
         background-color: var(--epg-program-current-bg, #0056b3);
       }
+      /* Now line (horizontal) */
       .epg-now-line {
         position: absolute;
-        top: 0;
-        bottom: 0;
-        width: 2px;
+        left: 0;
+        right: 0;
+        height: 2px;
         background-color: red;
         z-index: 10;
       }
       .epg-now-dot {
         position: absolute;
-        top: -4px;
         width: 8px;
         height: 8px;
         background-color: red;
         border-radius: 50%;
         z-index: 10;
-        transform: translateX(-3px);
+        transform: translate(-4px, -4px);
       }
       /* Popup styles */
       .epg-popup-backdrop {
@@ -194,6 +198,30 @@ class EpgCardImproved extends LitElement {
         color: var(--epg-program-text, #ffffff);
         opacity: 0.9;
         margin-bottom: 16px;
+      }
+      .epg-popup-nav {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .epg-popup-nav-btn {
+        background: transparent;
+        border: 1px solid var(--epg-timeline-color, #cccccc);
+        color: var(--epg-program-text, #ffffff);
+        border-radius: 4px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-size: 16px;
+        flex: 1;
+        text-align: center;
+      }
+      .epg-popup-nav-btn:hover {
+        opacity: 0.8;
+      }
+      .epg-popup-nav-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
       }
       .epg-popup-close {
         display: block;
@@ -347,9 +375,11 @@ class EpgCardImproved extends LitElement {
     }
     this.config = {
       entities: config.entities,
-      row_height: config.row_height || 100,
-      min_program_width: config.min_program_width || 80,
+      column_width: config.column_width || 160,
+      min_program_height: config.min_program_height || 30,
       default_hours_visible: config.default_hours_visible || 4,
+      pixels_per_hour: config.pixels_per_hour || 150,
+      timeline_width: config.timeline_width || 60,
       program_background_color: this._rgbToHex(config.program_background_color) || "#555555",
       program_text_color: this._rgbToHex(config.program_text_color) || "#ffffff",
       program_border_radius: config.program_border_radius || 4,
@@ -401,7 +431,7 @@ class EpgCardImproved extends LitElement {
     if (!this.hass || !this.config) return [];
 
     const channels = [];
-    for (const entityId of this.config.entities) {
+    for (const entityId of [...this.config.entities].sort()) {
       const state = this.hass.states[entityId];
       if (!state) {
         console.warn(`EPG Card: Entity ${entityId} not found`);
@@ -519,7 +549,7 @@ class EpgCardImproved extends LitElement {
   }
 
   /**
-   * Calculate a program's left position and width as percentages of the viewport.
+   * Calculate a program's top position and height as percentages of the viewport.
    */
   _getProgramPosition(program, viewport) {
     const viewportDuration = viewport.end.getTime() - viewport.start.getTime();
@@ -527,19 +557,20 @@ class EpgCardImproved extends LitElement {
     const programEnd = Math.min(program.endDate.getTime(), viewport.end.getTime());
     const programDuration = programEnd - programStart;
 
-    const left = ((programStart - viewport.start.getTime()) / viewportDuration) * 100;
-    const width = (programDuration / viewportDuration) * 100;
+    const top = ((programStart - viewport.start.getTime()) / viewportDuration) * 100;
+    const height = (programDuration / viewportDuration) * 100;
 
-    return { left, width };
+    return { top, height };
   }
 
   /**
-   * Calculate the effective width, respecting min_program_width.
+   * Calculate the effective height, respecting min_program_height.
    */
-  _getEffectiveWidth(widthPercent, containerWidth) {
-    const minPx = this.config.min_program_width || 80;
-    const minWidthPercent = (minPx / containerWidth) * 100;
-    return Math.max(widthPercent, minWidthPercent);
+  _getEffectiveHeight(heightPercent) {
+    const containerHeight = (this.config.pixels_per_hour || 150) * (this.config.default_hours_visible || 4);
+    const minPx = this.config.min_program_height || 30;
+    const minHeightPercent = (minPx / containerHeight) * 100;
+    return Math.max(heightPercent, minHeightPercent);
   }
 
   /**
@@ -619,13 +650,154 @@ class EpgCardImproved extends LitElement {
   // ===== Popup Methods =====
 
   _showProgramDetail(program, channel) {
-    this._selectedProgram = { ...program, channelName: channel.name };
+    const allChannels = this._getEpgData();
+    const visibleChannels = allChannels.filter((c) => c.visible);
+    const channelIndex = visibleChannels.findIndex((c) => c.entityId === channel.entityId);
+    this._selectedProgram = {
+      ...program,
+      channelName: channel.name,
+      channelEntityId: channel.entityId,
+      channelIndex,
+    };
     this.requestUpdate();
   }
 
   _closeProgramDetail() {
     this._selectedProgram = null;
     this.requestUpdate();
+  }
+
+  // ===== Popup Navigation Methods =====
+
+  _navigatePopupPrev() {
+    const channels = this._getEpgData().filter((c) => c.visible);
+    const channel = channels.find((c) => c.entityId === this._selectedProgram.channelEntityId);
+    if (!channel) return;
+    const programs = channel.programs;
+    const currentIdx = programs.findIndex(
+      (p) => p.start === this._selectedProgram.start && p.title === this._selectedProgram.title
+    );
+    if (currentIdx > 0) {
+      const prevProgram = programs[currentIdx - 1];
+      this._selectedProgram = {
+        ...prevProgram,
+        channelName: channel.name,
+        channelEntityId: channel.entityId,
+        channelIndex: this._selectedProgram.channelIndex,
+      };
+      this._ensureProgramVisible(prevProgram);
+      this.requestUpdate();
+    }
+  }
+
+  _navigatePopupNext() {
+    const channels = this._getEpgData().filter((c) => c.visible);
+    const channel = channels.find((c) => c.entityId === this._selectedProgram.channelEntityId);
+    if (!channel) return;
+    const programs = channel.programs;
+    const currentIdx = programs.findIndex(
+      (p) => p.start === this._selectedProgram.start && p.title === this._selectedProgram.title
+    );
+    if (currentIdx < programs.length - 1) {
+      const nextProgram = programs[currentIdx + 1];
+      this._selectedProgram = {
+        ...nextProgram,
+        channelName: channel.name,
+        channelEntityId: channel.entityId,
+        channelIndex: this._selectedProgram.channelIndex,
+      };
+      this._ensureProgramVisible(nextProgram);
+      this.requestUpdate();
+    }
+  }
+
+  _navigatePopupUp() {
+    const channels = this._getEpgData().filter((c) => c.visible);
+    const currentIdx = channels.findIndex((c) => c.entityId === this._selectedProgram.channelEntityId);
+    if (currentIdx > 0) {
+      const prevChannel = channels[currentIdx - 1];
+      const currentStart = this._selectedProgram.startDate;
+      const currentEnd = this._selectedProgram.endDate;
+      const matchingProgram = prevChannel.programs.find(
+        (p) => p.startDate < currentEnd && p.endDate > currentStart
+      );
+      if (matchingProgram) {
+        this._selectedProgram = {
+          ...matchingProgram,
+          channelName: prevChannel.name,
+          channelEntityId: prevChannel.entityId,
+          channelIndex: currentIdx - 1,
+        };
+        this._ensureProgramVisible(matchingProgram);
+        this.requestUpdate();
+      }
+    }
+  }
+
+  _navigatePopupDown() {
+    const channels = this._getEpgData().filter((c) => c.visible);
+    const currentIdx = channels.findIndex((c) => c.entityId === this._selectedProgram.channelEntityId);
+    if (currentIdx < channels.length - 1) {
+      const nextChannel = channels[currentIdx + 1];
+      const currentStart = this._selectedProgram.startDate;
+      const currentEnd = this._selectedProgram.endDate;
+      const matchingProgram = nextChannel.programs.find(
+        (p) => p.startDate < currentEnd && p.endDate > currentStart
+      );
+      if (matchingProgram) {
+        this._selectedProgram = {
+          ...matchingProgram,
+          channelName: nextChannel.name,
+          channelEntityId: nextChannel.entityId,
+          channelIndex: currentIdx + 1,
+        };
+        this._ensureProgramVisible(matchingProgram);
+        this.requestUpdate();
+      }
+    }
+  }
+
+  _canNavigatePrev() {
+    if (!this._selectedProgram) return false;
+    const channels = this._getEpgData().filter((c) => c.visible);
+    const channel = channels.find((c) => c.entityId === this._selectedProgram.channelEntityId);
+    if (!channel) return false;
+    const currentIdx = channel.programs.findIndex(
+      (p) => p.start === this._selectedProgram.start && p.title === this._selectedProgram.title
+    );
+    return currentIdx > 0;
+  }
+
+  _canNavigateNext() {
+    if (!this._selectedProgram) return false;
+    const channels = this._getEpgData().filter((c) => c.visible);
+    const channel = channels.find((c) => c.entityId === this._selectedProgram.channelEntityId);
+    if (!channel) return false;
+    const currentIdx = channel.programs.findIndex(
+      (p) => p.start === this._selectedProgram.start && p.title === this._selectedProgram.title
+    );
+    return currentIdx < channel.programs.length - 1;
+  }
+
+  _canNavigateUp() {
+    if (!this._selectedProgram) return false;
+    const channels = this._getEpgData().filter((c) => c.visible);
+    const currentIdx = channels.findIndex((c) => c.entityId === this._selectedProgram.channelEntityId);
+    return currentIdx > 0;
+  }
+
+  _canNavigateDown() {
+    if (!this._selectedProgram) return false;
+    const channels = this._getEpgData().filter((c) => c.visible);
+    const currentIdx = channels.findIndex((c) => c.entityId === this._selectedProgram.channelEntityId);
+    return currentIdx < channels.length - 1;
+  }
+
+  _ensureProgramVisible(program) {
+    const viewport = this._getViewport();
+    if (program.startDate < viewport.start || program.startDate >= viewport.end) {
+      this._viewportStartHour = Math.max(0, program.startDate.getHours() - 1);
+    }
   }
 
   // ===== Search Methods =====
@@ -644,8 +816,8 @@ class EpgCardImproved extends LitElement {
       return;
     }
 
+    // Try WS search first
     try {
-      // Use callWS to get service response data (callService doesn't return response)
       const results = await this.hass.callWS({
         type: "call_service",
         domain: "epg",
@@ -656,12 +828,45 @@ class EpgCardImproved extends LitElement {
         return_response: true,
       });
       const searchResults = results?.response?.results || results?.results || results || [];
-      this._searchResults = Array.isArray(searchResults) ? searchResults : [];
+      if (Array.isArray(searchResults) && searchResults.length > 0) {
+        this._searchResults = searchResults;
+        this.requestUpdate();
+        return;
+      }
     } catch (e) {
-      console.error("EPG search failed:", e);
-      this._searchResults = [];
+      console.warn("EPG WS search failed, falling back to local search:", e);
     }
+
+    // Local fallback
+    this._searchResults = this._searchLocally(this._searchQuery);
     this.requestUpdate();
+  }
+
+  /**
+   * Search through locally loaded program data.
+   */
+  _searchLocally(query) {
+    const channels = this._getEpgData();
+    const q = query.toLowerCase().trim();
+    const results = [];
+    for (const channel of channels) {
+      for (const program of channel.programs) {
+        if (
+          program.title.toLowerCase().includes(q) ||
+          (program.desc && program.desc.toLowerCase().includes(q))
+        ) {
+          results.push({
+            title: program.title,
+            channel_name: channel.name,
+            start_time: program.start,
+            end_time: program.end,
+            program: program,
+            channel: channel,
+          });
+        }
+      }
+    }
+    return results;
   }
 
   _handleSearchInput(ev) {
@@ -671,8 +876,16 @@ class EpgCardImproved extends LitElement {
   }
 
   _navigateToResult(result) {
-    const startHour = parseInt(result.start_time?.split(":")[0] || "0", 10);
+    const startHour = parseInt((result.start_time || result.start || "0").split(":")[0], 10);
     this._viewportStartHour = Math.max(0, startHour - 1);
+    // If local result with full program data, open the popup
+    if (result.program && result.channel) {
+      this._selectedProgram = {
+        ...result.program,
+        channelName: result.channel.name,
+        channelEntityId: result.channel.entityId,
+      };
+    }
     this._searchVisible = false;
     this._searchResults = [];
     this._searchQuery = "";
@@ -695,44 +908,42 @@ class EpgCardImproved extends LitElement {
 
   // ===== Rendering Methods =====
 
-  /**
-   * Estimate the pixel width of the programs container.
-   */
-  _estimateContainerWidth() {
-    const cardWidth = this.clientWidth || 800;
-    const channelNameWidth = Math.min(120, cardWidth * 0.12);
-    return cardWidth - channelNameWidth;
-  }
-
   render() {
     if (!this.hass || !this.config) {
       return html`<div class="epg-container">Loading...</div>`;
     }
 
-    const rowHeight = this.config.row_height || 100;
-    const minProgramWidth = this.config.min_program_width || 80;
     const allChannels = this._getEpgData();
     const visibleChannels = allChannels.filter((c) => c.visible);
     const viewport = this._getViewport();
-    const timelineHours = this._getTimelineHours();
+    const columnWidth = this.config.column_width || 160;
+    const pixelsPerHour = this.config.pixels_per_hour || 150;
+    const hoursVisible = this.config.default_hours_visible || 4;
+    const timelineWidth = this.config.timeline_width || 60;
+    const programAreaHeight = pixelsPerHour * hoursVisible;
 
     return html`
       <style>
         .epg-container {
-          --epg-row-height: ${rowHeight}px;
-          --epg-min-program-width: ${minProgramWidth}px;
+          --epg-column-width: ${columnWidth}px;
+          --epg-min-program-height: ${this.config.min_program_height || 30}px;
           --epg-program-bg: ${this.config.program_background_color || "#555555"};
           --epg-program-text: ${this.config.program_text_color || "#ffffff"};
           --epg-program-current-bg: ${this.config.current_program_highlight || "#0056b3"};
           --epg-program-border-radius: ${this.config.program_border_radius || 4}px;
           --epg-timeline-color: ${this.config.timeline_color || "#cccccc"};
           --epg-channel-name-color: ${this.config.channel_name_color || "#ffffff"};
+          --epg-timeline-width: ${timelineWidth}px;
+          --epg-viewport-height: ${programAreaHeight}px;
         }
       </style>
       <div class="epg-container">
-        ${this._renderTimeNavBar(timelineHours)}
-        <div class="epg-grid">
-          ${visibleChannels.map((channel) => this._renderChannelRow(channel, viewport))}
+        ${this._renderNavBar()}
+        <div class="epg-grid-wrapper">
+          ${this._renderTimelineCol(viewport, programAreaHeight)}
+          <div class="epg-channels-area">
+            ${visibleChannels.map((channel) => this._renderChannelCol(channel, viewport, programAreaHeight))}
+          </div>
         </div>
         ${this._renderChannelsBar(allChannels)}
         ${this._selectedProgram ? this._renderPopup() : ""}
@@ -741,33 +952,16 @@ class EpgCardImproved extends LitElement {
     `;
   }
 
-  _renderTimeNavBar(timelineHours) {
-    if (!this.config.enable_time_navigation && !this.config.enable_search) {
-      return html`
-        <div class="epg-timeline-bar">
-          <div class="epg-timeline-hours">
-            ${timelineHours.map((h) => html`<div class="epg-timeline-hour">${h}</div>`)}
-          </div>
-        </div>
-      `;
-    }
-
+  _renderNavBar() {
     return html`
-      <div class="epg-timeline-bar">
+      <div class="epg-nav-bar">
         ${this.config.enable_time_navigation
           ? html`
-              <button class="epg-nav-btn" @click=${this._navigateBack} title="Previous">
-                ◀
+              <button class="epg-nav-btn" @click=${this._navigateBack} title="Earlier">
+                ▲
               </button>
-            `
-          : ""}
-        <div class="epg-timeline-hours">
-          ${timelineHours.map((h) => html`<div class="epg-timeline-hour">${h}</div>`)}
-        </div>
-        ${this.config.enable_time_navigation
-          ? html`
-              <button class="epg-nav-btn" @click=${this._navigateForward} title="Next">
-                ▶
+              <button class="epg-nav-btn" @click=${this._navigateForward} title="Later">
+                ▼
               </button>
               <button class="epg-nav-btn" @click=${this._navigateNow} title="Now">
                 🕐
@@ -785,34 +979,58 @@ class EpgCardImproved extends LitElement {
     `;
   }
 
-  _renderChannelRow(channel, viewport) {
-    const visiblePrograms = this._getVisiblePrograms(channel.programs, viewport);
-    const containerWidth = this._estimateContainerWidth();
+  _renderTimelineCol(viewport, programAreaHeight) {
+    const hoursVisible = this.config.default_hours_visible || 4;
+    const timelineHours = this._getTimelineHours();
+    const viewportDuration = viewport.end.getTime() - viewport.start.getTime();
+
+    // Render time labels at each hour mark (skip the last one which is the boundary)
+    const timeLabels = timelineHours.slice(0, -1).map((h, i) => {
+      const topPercent = (i / hoursVisible) * 100;
+      return html`<div class="epg-timeline-label" style="top: ${topPercent}%">${h}</div>`;
+    });
+
+    // Render "now" dot on timeline
+    const now = new Date();
+    let nowDot = html``;
+    if (now >= viewport.start && now <= viewport.end) {
+      const nowPercent = ((now.getTime() - viewport.start.getTime()) / viewportDuration) * 100;
+      nowDot = html`<div class="epg-now-dot" style="top: ${nowPercent}%"></div>`;
+    }
 
     return html`
-      <div class="epg-channel-row">
-        <div class="epg-channel-name">${channel.name}</div>
-        <div class="epg-programs-container">
-          <div class="epg-programs-inner">
-            ${this._renderNowLine(viewport)}
-            ${visiblePrograms.map((program) =>
-              this._renderProgramBlock(program, viewport, containerWidth, channel)
-            )}
-          </div>
+      <div class="epg-timeline-col" style="height: ${programAreaHeight}px">
+        ${timeLabels}
+        ${nowDot}
+      </div>
+    `;
+  }
+
+  _renderChannelCol(channel, viewport, programAreaHeight) {
+    const visiblePrograms = this._getVisiblePrograms(channel.programs, viewport);
+
+    return html`
+      <div class="epg-channel-col">
+        <div class="epg-channel-header">${channel.name}</div>
+        <div class="epg-programs-col" style="height: ${programAreaHeight}px">
+          ${this._renderNowLineInColumn(viewport)}
+          ${visiblePrograms.map((program) =>
+            this._renderProgramBlock(program, viewport, channel)
+          )}
         </div>
       </div>
     `;
   }
 
-  _renderProgramBlock(program, viewport, containerWidth, channel) {
+  _renderProgramBlock(program, viewport, channel) {
     const pos = this._getProgramPosition(program, viewport);
-    const effectiveWidth = this._getEffectiveWidth(pos.width, containerWidth);
+    const effectiveHeight = this._getEffectiveHeight(pos.height);
     const isCurrent = program.isCurrent;
 
     return html`
       <div
         class="epg-program ${isCurrent ? "current" : ""}"
-        style="left: ${pos.left}%; width: ${effectiveWidth}%;"
+        style="top: ${pos.top}%; height: ${effectiveHeight}%;"
         @click=${() => this._showProgramDetail(program, channel)}
       >
         ${program.title}
@@ -820,18 +1038,12 @@ class EpgCardImproved extends LitElement {
     `;
   }
 
-  _renderNowLine(viewport) {
+  _renderNowLineInColumn(viewport) {
     const now = new Date();
-    if (now < viewport.start || now > viewport.end) {
-      return html``;
-    }
+    if (now < viewport.start || now > viewport.end) return html``;
     const viewportDuration = viewport.end.getTime() - viewport.start.getTime();
-    const nowPosition = ((now.getTime() - viewport.start.getTime()) / viewportDuration) * 100;
-
-    return html`
-      <div class="epg-now-line" style="left: ${nowPosition}%;"></div>
-      <div class="epg-now-dot" style="left: ${nowPosition}%;"></div>
-    `;
+    const nowPercent = ((now.getTime() - viewport.start.getTime()) / viewportDuration) * 100;
+    return html`<div class="epg-now-line" style="top: ${nowPercent}%"></div>`;
   }
 
   _renderPopup() {
@@ -843,6 +1055,12 @@ class EpgCardImproved extends LitElement {
           <div class="epg-popup-title">${p.title}</div>
           <div class="epg-popup-time">${p.start} → ${p.end}</div>
           ${p.desc ? html`<div class="epg-popup-desc">${p.desc}</div>` : ""}
+          <div class="epg-popup-nav">
+            <button class="epg-popup-nav-btn" @click=${this._navigatePopupUp} ?disabled=${!this._canNavigateUp()} title="Previous channel">▲</button>
+            <button class="epg-popup-nav-btn" @click=${this._navigatePopupPrev} ?disabled=${!this._canNavigatePrev()} title="Earlier program">◀</button>
+            <button class="epg-popup-nav-btn" @click=${this._navigatePopupNext} ?disabled=${!this._canNavigateNext()} title="Later program">▶</button>
+            <button class="epg-popup-nav-btn" @click=${this._navigatePopupDown} ?disabled=${!this._canNavigateDown()} title="Next channel">▼</button>
+          </div>
           <button class="epg-popup-close" @click=${this._closeProgramDetail}>Close</button>
         </div>
       </div>
@@ -871,7 +1089,7 @@ class EpgCardImproved extends LitElement {
                     <div class="epg-search-result" @click=${() => this._navigateToResult(r)}>
                       <div class="epg-search-result-title">${r.title}</div>
                       <div class="epg-search-result-meta">
-                        ${r.channel_name} • ${r.start_time} - ${r.end_time}
+                        ${r.channel_name} • ${r.start_time || r.start} - ${r.end_time || r.end}
                       </div>
                     </div>
                   `
@@ -956,21 +1174,33 @@ class EpgCardImprovedEditor extends LitElement {
             },
           },
           {
-            name: "row_height",
+            name: "column_width",
             selector: {
-              number: { min: 50, max: 300, unit_of_measurement: "px" },
+              number: { min: 80, max: 400, unit_of_measurement: "px" },
             },
           },
           {
-            name: "min_program_width",
+            name: "min_program_height",
             selector: {
-              number: { min: 40, max: 200, unit_of_measurement: "px" },
+              number: { min: 15, max: 100, unit_of_measurement: "px" },
+            },
+          },
+          {
+            name: "pixels_per_hour",
+            selector: {
+              number: { min: 50, max: 500, unit_of_measurement: "px" },
             },
           },
           {
             name: "default_hours_visible",
             selector: {
               number: { min: 1, max: 24, unit_of_measurement: "hours" },
+            },
+          },
+          {
+            name: "timeline_width",
+            selector: {
+              number: { min: 30, max: 120, unit_of_measurement: "px" },
             },
           },
           {
@@ -1016,6 +1246,6 @@ window.customCards.push({
   type: "epg-card-improved",
   name: "EPG Card Improved",
   preview: false,
-  description: "An improved EPG card with touch-friendly popups, search, and time navigation.",
+  description: "An improved EPG card with vertical timeline, touch-friendly popups with navigation, search, and time navigation.",
   documentationURL: "https://github.com/yohaybn/lovelace-epg-card",
 });
