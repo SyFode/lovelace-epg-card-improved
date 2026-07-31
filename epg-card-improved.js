@@ -380,6 +380,7 @@ class EpgCardImproved extends LitElement {
       entities: config.entities,
       column_width: config.column_width || 160,
       min_program_height: config.min_program_height || 30,
+      min_program_duration_minutes: config.min_program_duration_minutes || 15,
       default_hours_visible: config.default_hours_visible || 4,
       pixels_per_hour: config.pixels_per_hour || 150,
       timeline_width: config.timeline_width || 60,
@@ -568,10 +569,16 @@ class EpgCardImproved extends LitElement {
 
   /**
    * Calculate the effective height, respecting min_program_height.
+   * For programs shorter than min_program_duration_minutes, enforce a higher
+   * minimum so the title is always readable.
    */
-  _getEffectiveHeight(heightPercent) {
+  _getEffectiveHeight(heightPercent, durationMinutes) {
     const containerHeight = (this.config.pixels_per_hour || 150) * (this.config.default_hours_visible || 4);
-    const minPx = this.config.min_program_height || 30;
+    const minDuration = this.config.min_program_duration_minutes || 15;
+    // Short programs get a larger minimum height to ensure titles are readable
+    const minPx = (durationMinutes !== undefined && durationMinutes < minDuration)
+      ? Math.max(this.config.min_program_height || 30, minDuration * (this.config.pixels_per_hour || 150) / 60)
+      : this.config.min_program_height || 30;
     const minHeightPercent = (minPx / containerHeight) * 100;
     return Math.max(heightPercent, minHeightPercent);
   }
@@ -1030,7 +1037,8 @@ class EpgCardImproved extends LitElement {
 
   _renderProgramBlock(program, viewport, channel) {
     const pos = this._getProgramPosition(program, viewport);
-    const effectiveHeight = this._getEffectiveHeight(pos.height);
+    const durationMinutes = (program.endDate.getTime() - program.startDate.getTime()) / (60 * 1000);
+    const effectiveHeight = this._getEffectiveHeight(pos.height, durationMinutes);
     const isCurrent = program.isCurrent;
 
     return html`
@@ -1189,6 +1197,12 @@ class EpgCardImprovedEditor extends LitElement {
             name: "min_program_height",
             selector: {
               number: { min: 15, max: 100, unit_of_measurement: "px" },
+            },
+          },
+          {
+            name: "min_program_duration_minutes",
+            selector: {
+              number: { min: 1, max: 60, unit_of_measurement: "min" },
             },
           },
           {

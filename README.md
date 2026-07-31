@@ -60,6 +60,7 @@ enable_time_navigation: true
 | `entities` | list | required | EPG sensor entity IDs |
 | `column_width` | int | 160 | Width of each channel column in pixels |
 | `min_program_height` | int | 30 | Minimum program block height in pixels |
+| `min_program_duration_minutes` | int | 15 | Programs shorter than this (in minutes) get an enlarged block so their title is readable |
 | `pixels_per_hour` | int | 150 | Vertical height per hour of programming in pixels |
 | `timeline_width` | int | 60 | Width of the left timeline column in pixels |
 | `default_hours_visible` | int | 4 | Hours shown in the viewport |
