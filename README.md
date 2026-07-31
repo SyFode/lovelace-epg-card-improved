@@ -96,6 +96,12 @@ When viewing a program's details, use the navigation arrows to browse without cl
 
 The viewport automatically scrolls to show programs that are off-screen.
 
+### Time Navigation Limits
+
+- **Earlier (▲):** Scrolls backward in time. Note: the EPG integration only provides current and future programs in the `today` attribute, so programs that have already ended will not appear.
+- **Later (▼):** Scrolls forward through today and into tomorrow's schedule. Hours past midnight show a `+` suffix (e.g. `01:00+`).
+- **Now (🕐):** Jumps back to the current time.
+
 ## Requirements
 
 - [HomeAssistant-EPG](https://github.com/yohaybn/HomeAssistant-EPG) integration installed and configured
