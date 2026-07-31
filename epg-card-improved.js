@@ -1062,16 +1062,53 @@ class EpgCardImproved extends LitElement {
     `;
   }
 
+  /**
+   * Calculate non-overlapping positions for all visible programs in a channel.
+   * If a program's effective height (enlarged for short programs) overlaps
+   * the next program, the next program's top is pushed down.
+   * Returns an array of { program, top, height } objects.
+   */
+  _calculateProgramLayout(visiblePrograms, viewport) {
+    const containerHeight = (this.config.pixels_per_hour || 150) * (this.config.default_hours_visible || 4);
+    const minProgramHeightPx = this.config.min_program_height || 30;
+    const gapPx = 4; // Small gap between programs to avoid title overlap
+    const gapPercent = (gapPx / containerHeight) * 100;
+
+    const layout = [];
+    let prevBottomPercent = -Infinity; // Track the bottom of the previous program block
+
+    for (const program of visiblePrograms) {
+      const pos = this._getProgramPosition(program, viewport);
+      const durationMinutes = (program.endDate.getTime() - program.startDate.getTime()) / (60 * 1000);
+      const effectiveHeight = this._getEffectiveHeight(pos.height, durationMinutes);
+
+      // Push this program down if it would overlap with the previous one, plus a gap
+      const minTop = prevBottomPercent > 0 ? prevBottomPercent + gapPercent : pos.top;
+      const top = Math.max(pos.top, minTop);
+
+      // Recalculate height: shrink if pushed down, but never below minimum
+      const availableHeight = effectiveHeight - (top - pos.top);
+      const minPercent = (minProgramHeightPx / containerHeight) * 100;
+      const height = Math.max(availableHeight, minPercent);
+
+      layout.push({ program, top, height });
+      prevBottomPercent = top + height;
+    }
+
+    return layout;
+  }
+
   _renderChannelCol(channel, viewport, programAreaHeight) {
     const visiblePrograms = this._getVisiblePrograms(channel.programs, viewport);
+    const layout = this._calculateProgramLayout(visiblePrograms, viewport);
 
     return html`
       <div class="epg-channel-col">
         <div class="epg-channel-header">${channel.name}</div>
         <div class="epg-programs-col" style="height: ${programAreaHeight}px">
           ${this._renderNowLineInColumn(viewport)}
-          ${visiblePrograms.map((program) =>
-            this._renderProgramBlock(program, viewport, channel)
+          ${layout.map(({ program, top, height }) =>
+            this._renderProgramBlockWithPosition(program, channel, top, height)
           )}
         </div>
       </div>
@@ -1088,6 +1125,19 @@ class EpgCardImproved extends LitElement {
       <div
         class="epg-program ${isCurrent ? "current" : ""}"
         style="top: ${pos.top}%; height: ${effectiveHeight}%;"
+        @click=${() => this._showProgramDetail(program, channel)}
+      >
+        ${program.title}
+      </div>
+    `;
+  }
+
+  _renderProgramBlockWithPosition(program, channel, top, height) {
+    const isCurrent = program.isCurrent;
+    return html`
+      <div
+        class="epg-program ${isCurrent ? "current" : ""}"
+        style="top: ${top}%; height: ${height}%;"
         @click=${() => this._showProgramDetail(program, channel)}
       >
         ${program.title}
