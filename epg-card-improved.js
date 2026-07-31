@@ -136,7 +136,6 @@ class EpgCardImproved extends LitElement {
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
-        overflow: hidden;
       }
       .epg-program:hover {
         opacity: 0.85;
@@ -766,7 +765,6 @@ class EpgCardImproved extends LitElement {
         channelEntityId: channel.entityId,
         channelIndex: this._selectedProgram.channelIndex,
       };
-      this._ensureProgramVisible(prevProgram);
       this.requestUpdate();
     }
   }
@@ -787,7 +785,6 @@ class EpgCardImproved extends LitElement {
         channelEntityId: channel.entityId,
         channelIndex: this._selectedProgram.channelIndex,
       };
-      this._ensureProgramVisible(nextProgram);
       this.requestUpdate();
     }
   }
@@ -809,7 +806,6 @@ class EpgCardImproved extends LitElement {
           channelEntityId: prevChannel.entityId,
           channelIndex: currentIdx - 1,
         };
-        this._ensureProgramVisible(matchingProgram);
         this.requestUpdate();
       }
     }
@@ -832,7 +828,6 @@ class EpgCardImproved extends LitElement {
           channelEntityId: nextChannel.entityId,
           channelIndex: currentIdx + 1,
         };
-        this._ensureProgramVisible(matchingProgram);
         this.requestUpdate();
       }
     }
