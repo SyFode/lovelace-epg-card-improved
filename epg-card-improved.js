@@ -178,12 +178,38 @@ class EpgCardImproved extends LitElement {
         color: var(--epg-program-text, #ffffff);
         box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
       }
+      .epg-popup-channel-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+        gap: 8px;
+      }
       .epg-popup-channel {
         font-size: 12px;
         color: var(--epg-timeline-color, #cccccc);
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin-bottom: 4px;
+        flex: 1;
+        text-align: center;
+      }
+      .epg-popup-arrow-btn {
+        background: transparent;
+        border: 1px solid var(--epg-timeline-color, #cccccc);
+        color: var(--epg-program-text, #ffffff);
+        border-radius: 4px;
+        padding: 4px 10px;
+        cursor: pointer;
+        font-size: 16px;
+        min-width: 36px;
+        text-align: center;
+      }
+      .epg-popup-arrow-btn:hover {
+        opacity: 0.8;
+      }
+      .epg-popup-arrow-btn:disabled {
+        opacity: 0.3;
+        cursor: default;
       }
       .epg-popup-title {
         font-size: 18px;
@@ -202,29 +228,15 @@ class EpgCardImproved extends LitElement {
         opacity: 0.9;
         margin-bottom: 16px;
       }
-      .epg-popup-nav {
+      .epg-popup-programs-nav {
         display: flex;
-        justify-content: space-between;
-        gap: 8px;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
         margin-bottom: 12px;
       }
-      .epg-popup-nav-btn {
-        background: transparent;
-        border: 1px solid var(--epg-timeline-color, #cccccc);
-        color: var(--epg-program-text, #ffffff);
-        border-radius: 4px;
-        padding: 6px 12px;
-        cursor: pointer;
-        font-size: 16px;
-        flex: 1;
-        text-align: center;
-      }
-      .epg-popup-nav-btn:hover {
-        opacity: 0.8;
-      }
-      .epg-popup-nav-btn:disabled {
-        opacity: 0.3;
-        cursor: default;
+      .epg-popup-programs-nav .epg-popup-arrow-btn {
+        width: 100%;
       }
       .epg-popup-close {
         display: block;
@@ -435,7 +447,7 @@ class EpgCardImproved extends LitElement {
     if (!this.hass || !this.config) return [];
 
     const channels = [];
-    for (const entityId of [...this.config.entities].sort()) {
+    for (const entityId of this.config.entities) {
       const state = this.hass.states[entityId];
       if (!state) {
         console.warn(`EPG Card: Entity ${entityId} not found`);
@@ -1065,15 +1077,17 @@ class EpgCardImproved extends LitElement {
     return html`
       <div class="epg-popup-backdrop" @click=${this._closeProgramDetail}>
         <div class="epg-popup" @click=${(e) => e.stopPropagation()}>
-          <div class="epg-popup-channel">${p.channelName}</div>
+          <div class="epg-popup-channel-row">
+            <button class="epg-popup-arrow-btn" @click=${this._navigatePopupUp} ?disabled=${!this._canNavigateUp()} title="Previous channel">◀</button>
+            <div class="epg-popup-channel">${p.channelName}</div>
+            <button class="epg-popup-arrow-btn" @click=${this._navigatePopupDown} ?disabled=${!this._canNavigateDown()} title="Next channel">▶</button>
+          </div>
           <div class="epg-popup-title">${p.title}</div>
           <div class="epg-popup-time">${p.start} → ${p.end}</div>
           ${p.desc ? html`<div class="epg-popup-desc">${p.desc}</div>` : ""}
-          <div class="epg-popup-nav">
-            <button class="epg-popup-nav-btn" @click=${this._navigatePopupUp} ?disabled=${!this._canNavigateUp()} title="Previous channel">▲</button>
-            <button class="epg-popup-nav-btn" @click=${this._navigatePopupPrev} ?disabled=${!this._canNavigatePrev()} title="Earlier program">◀</button>
-            <button class="epg-popup-nav-btn" @click=${this._navigatePopupNext} ?disabled=${!this._canNavigateNext()} title="Later program">▶</button>
-            <button class="epg-popup-nav-btn" @click=${this._navigatePopupDown} ?disabled=${!this._canNavigateDown()} title="Next channel">▼</button>
+          <div class="epg-popup-programs-nav">
+            <button class="epg-popup-arrow-btn" @click=${this._navigatePopupPrev} ?disabled=${!this._canNavigatePrev()} title="Earlier program">▲</button>
+            <button class="epg-popup-arrow-btn" @click=${this._navigatePopupNext} ?disabled=${!this._canNavigateNext()} title="Later program">▼</button>
           </div>
           <button class="epg-popup-close" @click=${this._closeProgramDetail}>Close</button>
         </div>

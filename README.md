@@ -51,6 +51,8 @@ program_text_color: "#ffffff"
 current_program_highlight: "#0056b3"
 enable_search: true
 enable_time_navigation: true
+grid_options:
+  columns: full
 ```
 
 ### Options
@@ -88,10 +90,9 @@ All visual options are also available as CSS custom properties with the `--epg-`
 ## Popup Navigation
 
 When viewing a program's details, use the navigation arrows to browse without closing the popup:
-- **▲** — Previous channel (at the same time slot)
-- **▼** — Next channel (at the same time slot)
-- **◀** — Previous program on the same channel
-- **▶** — Next program on the same channel
+- **◀ ▶** — Previous/next channel (shows the program airing at the same time on the adjacent channel)
+- **▲** — Earlier program on the same channel
+- **▼** — Later program on the same channel
 
 The viewport automatically scrolls to show programs that are off-screen.
 
