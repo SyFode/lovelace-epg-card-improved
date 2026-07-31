@@ -478,6 +478,7 @@ class EpgCardImproved extends LitElement {
 
   /**
    * Parse program dictionaries into sorted array with computed end times.
+   * Handles programs that cross midnight (end time < start time).
    */
   _parsePrograms(todayPrograms, tomorrowPrograms) {
     const programs = [];
@@ -491,7 +492,9 @@ class EpgCardImproved extends LitElement {
       const endStr = prog.end || (todayKeys[i + 1] ? todayKeys[i + 1] : "24:00");
 
       const startTime = this._timeToDate(startStr, 0);
-      const endTime = this._timeToDate(endStr, 0);
+      // If end time is earlier than start time, the program crosses midnight
+      const endDayOffset = this._endDayOffset(startStr, endStr);
+      const endTime = this._timeToDate(endStr, endDayOffset);
 
       programs.push({
         title: prog.title || "Unknown",
@@ -514,7 +517,9 @@ class EpgCardImproved extends LitElement {
       const endStr = prog.end || (tomorrowKeys[i + 1] ? tomorrowKeys[i + 1] : "24:00");
 
       const startTime = this._timeToDate(startStr, 1);
-      const endTime = this._timeToDate(endStr, 1);
+      // If end time is earlier than start time, the program crosses midnight into day after tomorrow
+      const endDayOffset = 1 + this._endDayOffset(startStr, endStr);
+      const endTime = this._timeToDate(endStr, endDayOffset);
 
       programs.push({
         title: prog.title || "Unknown",
@@ -530,6 +535,21 @@ class EpgCardImproved extends LitElement {
     }
 
     return programs;
+  }
+
+  /**
+   * Determine the day offset for an end time relative to its start time.
+   * If end time is earlier than start time, the program crosses midnight
+   * and the end is on the next day.
+   * Returns 0 if same day, 1 if next day.
+   */
+  _endDayOffset(startStr, endStr) {
+    const [startH, startM] = startStr.split(":").map(Number);
+    const [endH, endM] = endStr.split(":").map(Number);
+    if (endH < startH || (endH === startH && endM < startM)) {
+      return 1; // crosses midnight
+    }
+    return 0; // same day
   }
 
   /**
